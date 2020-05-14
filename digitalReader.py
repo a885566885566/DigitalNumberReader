@@ -1,16 +1,27 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[15]:
+
+
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
 import cv2
+from datetime import datetime
+
+
+# In[16]:
+
 
 def tupleToInt(tu):
     return (int(tu[0]), int(tu[1]))
 
 class DigiNumber:
-    def __init__(self, location, numberSize, criteria=40):
+    def __init__(self, location, numberSize, criteria=35):
         self.numberSize = numberSize
         self.location = location
-        self.cubeSize = (numberSize[1]//6, 2* numberSize[1]//6)
+        self.cubeSize = (numberSize[1]//16, 2* numberSize[1]//6)
         self.criteria = criteria
         self.binCode = ""
         self.number = ""
@@ -35,7 +46,7 @@ class DigiNumber:
         "1111001" : 3,
         "0110011" : 4,
         "1011011" : 5,
-        "0011111" : 6,
+        "1011111" : 6,
         "1110000" : 7,
         "1111111" : 8,
         "1111011" : 9
@@ -60,7 +71,9 @@ class DigiNumber:
             self.roiPoints[idx, 2] = nmax - nmin
             self.roiPoints[idx, 3] = 0 if (nmax - nmin < self.criteria) else 1
             self.binCode += str(self.roiPoints[idx, 3])
-        self.number = self.getNum(self.binCode)
+        code = self.getNum(self.binCode)
+        if code != "error":
+            self.number = self.getNum(self.binCode)
             
     def draw(self, img):
         endPoint = (self.location[0]+self.numberSize[0], self.location[1]+self.numberSize[1])
@@ -80,15 +93,25 @@ class DigiNumber:
               0.5, (0, 255, 255), 1, cv2.LINE_AA)
             
 
+
+# In[17]:
+
+
 if __name__ == '__main__':
     NUM_DIGITS = 4
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 600)
     
     digiNums = []
     digitStart = (100, 100)
     digitOffset = 80
+    recordCounter = 0
+    recordLimit = 20
+    recordFilename = ""
+    
+    record = False
+    f = None
     for i in range(NUM_DIGITS):
         location = (digitStart[0] + digitOffset*i, digitStart[1])
         digiNums.append(DigiNumber(location, (45, 95)))
@@ -105,11 +128,45 @@ if __name__ == '__main__':
         for i in range(NUM_DIGITS):
             digiNums[i].detect(gray)
             digiNums[i].draw(frame)
-        cv2.imshow('My Image', frame)
         
-        if cv2.waitKey(10) & 0xFF == ord('q'):
+        
+        keycode = cv2.waitKey(10) & 0xFF
+        if keycode == ord('q'):
             break
+        elif keycode == ord('s'):
+            record = True
+            nowtime = datetime.now().strftime("%H_%M_%S")
+            recordFilename = "./output" + nowtime + ".txt"
+            f = open(recordFilename, "a+")
+        elif keycode == ord('e'):
+            f.close()
+            record = False
+            
+        if record == True:
+            cv2.putText(frame, "Recording to " + recordFilename, (10, 30), cv2.FONT_HERSHEY_SIMPLEX,
+              0.5, (255, 0, 0), 1, cv2.LINE_AA)
+            if recordCounter >= recordLimit:
+                str_time = str(datetime.now().time())
+                f.write(str_time + "\t" + str(digiNums[1].number) + str(digiNums[2].number) + str(digiNums[3].number) + "\n")
+                recordCounter = 0
+                f.flush()
+            recordCounter += 1
+            
+        cv2.imshow('My Image', frame)
     print("Camera closed")
 
     cap.release()
     cv2.destroyAllWindows()
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
